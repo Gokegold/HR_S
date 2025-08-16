@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          node-version: 18
+      - name: Setup PostgreSQL
+        uses: Harmon758/postgres-action@v2
+        with:
+          postgresql version: '15'
+          postgresql db: hr_attendance
+          postgresql user: postgres
+          postgresql password: postgres
+      - name: Install backend deps
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hr_attendance
+        run: npx prisma migrate deploy || true
+      - name: Run tests
+        run: npm test
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install frontend deps
+        run: npm ci
+      - name: Build
+        run: npm run build
